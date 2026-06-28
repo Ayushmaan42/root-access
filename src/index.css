@@ -1,6 +1,17 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
+/* JetBrains Mono — used by the loading screen, Reality Console, and HUD.
+   Variable font already shipped in public/assets/fonts/. */
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/assets/fonts/JetBrains_Mono,Space_Mono/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf")
+    format("truetype");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Minimal globals for a full-bleed WebGL game canvas (no game code yet). */
 html,
 body,
