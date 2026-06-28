@@ -27,6 +27,12 @@ export default function ThirdPersonCamera({ targetRef }: ThirdPersonCameraProps)
   const { world, rapier } = useRapier()
 
   const yaw = useRef(0)
+  const pitch = useRef(0) // 0 is horizontal
+  
+  // AAA Smoothing: Decouple raw input from actual rotation
+  const targetYaw = useRef(0)
+  const targetPitch = useRef(0)
+  
   const active = useRef(false)
 
   const from = useMemo(() => new Vector3(), [])
@@ -34,11 +40,14 @@ export default function ThirdPersonCamera({ targetRef }: ThirdPersonCameraProps)
   const dir = useMemo(() => new Vector3(), [])
   const lookAt = useMemo(() => new Vector3(), [])
 
-  // Horizontal orbit from mouse movement (only while pointer-locked).
+  // Horizontal and vertical orbit from mouse movement (only while pointer-locked).
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (document.pointerLockElement && !useGameStore.getState().isConsoleOpen) {
-        yaw.current -= e.movementX * MOUSE_SENSITIVITY
+        targetYaw.current -= e.movementX * MOUSE_SENSITIVITY
+        // Pitch with limits to avoid looking completely straight up or down
+        targetPitch.current += e.movementY * MOUSE_SENSITIVITY
+        targetPitch.current = Math.max(-Math.PI / 3, Math.min(Math.PI / 2.2, targetPitch.current))
       }
     }
     const onClick = () => {
@@ -66,12 +75,22 @@ export default function ThirdPersonCamera({ targetRef }: ThirdPersonCameraProps)
     if (!active.current || !targetRef.current) return
     const target = targetRef.current
 
-    // Desired camera position: offset behind (by yaw) and above the player.
+    // 1. AAA Camera Smoothing: Spring interpolation for yaw/pitch
+    // We use exponential decay which acts like a critically damped spring
+    // A multiplier of 15 gives a snappy but buttery smooth ease-out.
+    const rotationBlend = 1 - Math.exp(-15 * delta)
+    yaw.current += (targetYaw.current - yaw.current) * rotationBlend
+    pitch.current += (targetPitch.current - pitch.current) * rotationBlend
+
+    // 2. Desired camera position: offset behind (by yaw) and above/below (by pitch).
+    // Spherical coordinates around the player:
+    const horizontalDistance = Math.cos(pitch.current) * DISTANCE
+    const verticalOffset = Math.sin(pitch.current) * DISTANCE
+    
     desired
-      .set(Math.sin(yaw.current), 0, Math.cos(yaw.current))
-      .multiplyScalar(DISTANCE)
+      .set(Math.sin(yaw.current) * horizontalDistance, 0, Math.cos(yaw.current) * horizontalDistance)
       .add(target)
-    desired.y = target.y + HEIGHT
+    desired.y = target.y + HEIGHT + verticalOffset
 
     // Cheap collision: one physics ray from above the player out to the camera.
     // The origin sits above the capsule, so it never self-hits the player.
@@ -93,7 +112,10 @@ export default function ThirdPersonCamera({ targetRef }: ThirdPersonCameraProps)
     }
 
     // Very fast lerp — feels instant but eliminates single-frame jitter
-    camera.position.lerp(desired, 1 - Math.exp(-25 * delta))
+    // Increased from 25 to 60 to tightly track the player and stop the "lagging behind" feel
+    camera.position.lerp(desired, 1 - Math.exp(-60 * delta))
+    
+    // Look at target plus our pitch offset, so the camera doesn't always stare at feet when high up
     lookAt.set(target.x, target.y + LOOK_HEIGHT, target.z)
     camera.lookAt(lookAt)
   })

@@ -10,6 +10,7 @@ interface WorldObjectProps {
   position: [number, number, number]
   rotation?: [number, number, number]
   scale?: number | [number, number, number]
+  cloneOffset?: [number, number, number]
   children: React.ReactNode
 }
 
@@ -22,9 +23,11 @@ interface WorldObjectProps {
  */
 export default function WorldObject({
   name,
+  type,
   position,
   rotation = [0, 0, 0],
   scale = 1,
+  cloneOffset = [0, 0, 5],
   children,
 }: WorldObjectProps) {
   const groupRef = useRef<Group>(null)
@@ -32,6 +35,7 @@ export default function WorldObject({
 
   const currentAct = useGameStore((state) => state.currentAct)
   const mutations = useGameStore((state) => state.worldMutations)
+  const isConsoleOpen = useGameStore((state) => state.isConsoleOpen)
 
   const isDeleted = mutations[`delete:${name}`]
   const isCloned = mutations[`clone:${name}`]
@@ -41,6 +45,7 @@ export default function WorldObject({
   const hasMutation = isDeleted || isCloned || isFrozen || isGravity
   const needsPerFrame =
     hasMutation ||
+    currentAct === 'act2' ||
     currentAct === 'act3' ||
     currentAct === 'act4' ||
     currentAct === 'act5'
@@ -74,18 +79,21 @@ export default function WorldObject({
     if (fullyHidden.current || !innerRef.current) return
     // Fast exit: no mutations and act doesn't need per-frame work
     if (!needsPerFrame) return
+    
+    // Scale delta for bullet time
+    const dt = isConsoleOpen ? delta * 0.05 : delta
 
     const g = innerRef.current
 
     // 1. DELETE animation
     if (isDeleted) {
-      deleteTimerRef.current += delta
+      deleteTimerRef.current += dt
       if (deleteTimerRef.current >= 1.0) {
         fullyHidden.current = true
         g.visible = false
         return
       }
-      g.position.y += delta * 15
+      g.position.y += dt * 15
       const shrink = 1.0 - deleteTimerRef.current
       g.scale.multiplyScalar(shrink)
       return
@@ -93,18 +101,27 @@ export default function WorldObject({
 
     // 2. GRAVITY float
     if (isGravity) {
-      g.position.y += delta * 4 * driftSpeed
-      g.rotation.x += delta * 0.3
-      g.rotation.z += delta * 0.2
+      g.position.y += dt * 4 * driftSpeed
+      g.rotation.x += dt * 0.3
+      g.rotation.z += dt * 0.2
     }
 
-    // 3. Act 3 jitter
+    // 3. Act 2: Subtle glitches (1-frame disappear or flicker)
+    if (currentAct === 'act2' && !isFrozen) {
+      if (Math.random() < 0.001) {
+        g.visible = false
+      } else {
+        g.visible = true
+      }
+    }
+
+    // 4. Act 3 jitter (floating props)
     if (currentAct === 'act3' && !isFrozen) {
       if (Math.random() < 0.002 && jitterTimerRef.current <= 0) {
         jitterTimerRef.current = 0.25
       }
       if (jitterTimerRef.current > 0) {
-        jitterTimerRef.current -= delta
+        jitterTimerRef.current -= dt
         _jitter.set(
           (Math.random() - 0.5) * 0.4,
           (Math.random() - 0.5) * 0.1,
@@ -112,16 +129,31 @@ export default function WorldObject({
         )
         g.position.x = position[0] + _jitter.x
         g.position.z = position[2] + _jitter.z
+        
+        // Small props float up slightly
+        if (type === 'prop') {
+          g.position.y = position[1] + 1.0 + Math.random() * 0.5
+        }
+      } else {
+        if (type === 'prop') g.position.y = position[1]
       }
     }
 
-    // 4. Act 4/5 hover
+    // 5. Act 4/5 hover & geometry disappearances
     if ((currentAct === 'act4' || currentAct === 'act5') && !isGravity && !isFrozen) {
-      const t = state.clock.getElapsedTime()
-      g.position.y =
-        position[1] + Math.sin(t * 0.8 + phaseOffset) * 0.8 * driftAmplitude
-      g.rotation.z = rotation[2] + Math.sin(t * 0.3 + phaseOffset) * 0.05
-      g.rotation.x = rotation[0] + Math.cos(t * 0.3 + phaseOffset) * 0.05
+      // Missing geometry
+      if (Math.random() < 0.0005) {
+        g.visible = !g.visible
+      }
+      
+      // Floating objects
+      if (type === 'prop' || type === 'lamp' || (type === 'building' && seedHash % 10 < 3)) {
+        const t = state.clock.getElapsedTime()
+        g.position.y =
+          position[1] + Math.sin(t * 0.8 + phaseOffset) * 0.8 * driftAmplitude + (currentAct === 'act5' ? 5 : 2)
+        g.rotation.z = rotation[2] + Math.sin(t * 0.3 + phaseOffset) * 0.05
+        g.rotation.x = rotation[0] + Math.cos(t * 0.3 + phaseOffset) * 0.05
+      }
     }
   })
 
@@ -129,15 +161,6 @@ export default function WorldObject({
 
   const scaleArr: [number, number, number] =
     typeof scale === 'number' ? [scale, scale, scale] : scale
-
-  // Clone positions for the CLONE mutation
-  const clonePositions: [number, number, number][] = isCloned
-    ? [
-        [position[0] + 9, position[1], position[2] - 9],
-        [position[0] - 11, position[1], position[2] + 7],
-        [position[0] + 5, position[1], position[2] + 13],
-      ]
-    : []
 
   return (
     <group ref={groupRef}>
@@ -163,17 +186,30 @@ export default function WorldObject({
         )}
       </group>
 
-      {isCloned &&
-        clonePositions.map((clonePos, idx) => (
-          <group
-            key={`clone-${idx}`}
-            position={clonePos}
-            rotation={[rotation[0], rotation[1] + (idx + 1) * 0.5, rotation[2]]}
-            scale={scaleArr.map((s) => s * 0.9) as [number, number, number]}
-          >
-            {children}
-          </group>
-        ))}
+      {isCloned && (
+        <group
+          position={[
+            position[0] + cloneOffset[0],
+            position[1] + cloneOffset[1],
+            position[2] + cloneOffset[2],
+          ]}
+          rotation={rotation}
+          scale={scaleArr}
+        >
+          {children}
+          {/* Glitch wireframe shell to indicate it is a cloned anomaly */}
+          <mesh>
+            <boxGeometry args={[1.05, 1.05, 1.05]} />
+            <meshBasicMaterial
+              color="#0ea5e9"
+              wireframe
+              transparent
+              opacity={0.3}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+      )}
     </group>
   )
 }

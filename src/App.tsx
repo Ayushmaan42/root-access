@@ -6,6 +6,8 @@ import type { Act } from './systems/StabilitySystem'
 // Global HUD, Console, and Visual Effects overlays
 import RealityConsole from './components/Console'
 import HUD from './components/HUD'
+import MissionUI from './components/HUD/MissionUI'
+import PlayerUI from './components/HUD/PlayerUI'
 import { DataRain, GlitchFlash } from './components/VFX'
 
 const PrologueScene = lazy(() => import('./scenes/Prologue'))
@@ -58,6 +60,8 @@ export default function App() {
 
       {/* Global Interface Overlays */}
       <HUD />
+      <MissionUI />
+      <PlayerUI />
       <RealityConsole />
       <DataRain />
       <GlitchFlash />

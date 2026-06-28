@@ -44,15 +44,15 @@ export const ACT_ORDER: Act[] = [
 
 /**
  * Map a stability percentage to the act it belongs to, using the thresholds
- * from CLAUDE.md (100→Act1, 80→Act2, 60→Act3, 40→Act4, 20→Act5, 0→Core).
+ * (100→Act1, 90→Act2, 75→Act3, 55→Act4, 35→Act5, 10→Core).
  * Prologue is a narrative intro and is never derived from stability.
  */
 export function actForStability(stability: number): Act {
-  if (stability <= 0) return 'core'
-  if (stability <= 20) return 'act5'
-  if (stability <= 40) return 'act4'
-  if (stability <= 60) return 'act3'
-  if (stability <= 80) return 'act2'
+  if (stability <= 10) return 'core'
+  if (stability <= 35) return 'act5'
+  if (stability <= 55) return 'act4'
+  if (stability <= 75) return 'act3'
+  if (stability <= 90) return 'act2'
   return 'act1'
 }
 
@@ -71,6 +71,13 @@ interface GameState {
   isConsoleOpen: boolean
   currentDialogue: string[] | null
   dialogueIndex: number
+  
+  // ---- Mission System ----
+  currentObjective: string
+  currentTasks: { id: string; label: string; completed: boolean }[]
+
+  // ---- Player Combat ----
+  playerHealth: number
 
   // ---- Actions ----
   useCommand: (commandName: CommandName, target: string) => void
@@ -83,6 +90,14 @@ interface GameState {
   setConsoleOpen: (open: boolean) => void
   showDialogue: (lines: string[]) => void
   advanceDialogue: () => void
+  
+  // ---- Mission Actions ----
+  setObjective: (objective: string, tasks: { id: string; label: string; completed: boolean }[]) => void
+  completeTask: (taskId: string) => void
+  unlockCommand: (command: string) => void
+  
+  // ---- Combat Actions ----
+  takeDamage: (amount: number) => void
 }
 
 const ACT_DIALOGUES: Record<Exclude<Act, 'prologue' | 'core'>, string[]> = {
@@ -131,12 +146,25 @@ export const useGameStore = create<GameState>((set, get) => ({
   isConsoleOpen: false,
   currentDialogue: null,
   dialogueIndex: 0,
+  
+  // Mission Default
+  currentObjective: 'Explore the city',
+  currentTasks: [],
+  
+  // Player Default
+  playerHealth: 100,
 
   /**
    * Run a reality-altering command: drains stability by the command's cost,
    * counts the command, and records the mutation. Triggers an act check after.
    */
   useCommand: (commandName, target) => {
+    // Sentinels are immune to deletion!
+    if (commandName === 'delete' && target.startsWith('sentinel_')) {
+      get().showDialogue(['[ERROR]: TARGET "SENTINEL" POSSESSES IMMUTABLE GEOMETRY. DELETE FAILED.'])
+      return
+    }
+
     const cost = COMMAND_COST[commandName] ?? 0
     set((state) => ({
       stabilityPercent: Math.max(0, state.stabilityPercent - cost),
@@ -243,11 +271,41 @@ export const useGameStore = create<GameState>((set, get) => ({
   advanceDialogue: () => {
     const { currentDialogue, dialogueIndex } = get()
     if (!currentDialogue) return
-
     if (dialogueIndex + 1 < currentDialogue.length) {
       set({ dialogueIndex: dialogueIndex + 1 })
     } else {
       set({ currentDialogue: null, dialogueIndex: 0 })
     }
   },
+  
+  // ---- Mission Actions ----
+  setObjective: (objective, tasks) => {
+    set({ currentObjective: objective, currentTasks: tasks })
+  },
+  completeTask: (taskId) => {
+    set((state) => ({
+      currentTasks: state.currentTasks.map((t) =>
+        t.id === taskId ? { ...t, completed: true } : t
+      )
+    }))
+  },
+  unlockCommand: (command) => {
+    set((state) => {
+      if (state.unlockedCommands.includes(command)) return state
+      return { unlockedCommands: [...state.unlockedCommands, command] }
+    })
+  },
+  
+  // ---- Combat Actions ----
+  takeDamage: (amount) => {
+    set((state) => {
+      const newHealth = Math.max(0, state.playerHealth - amount)
+      if (newHealth <= 0) {
+        // Player dies -> respawn / game over
+        // For now, reset to 100 to prevent softlock
+        return { playerHealth: 100 }
+      }
+      return { playerHealth: newHealth }
+    })
+  }
 }))

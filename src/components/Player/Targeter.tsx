@@ -43,7 +43,11 @@ export default function Targeter() {
             obj.name.startsWith('low_building_') ||
             obj.name.startsWith('streetlight_') ||
             obj.name.startsWith('prop_') ||
-            obj.name.startsWith('npc_'))
+            obj.name.startsWith('npc_') ||
+            obj.name.startsWith('enforcer_') ||
+            obj.name.startsWith('hunter_') ||
+            obj.name.startsWith('sentinel_') ||
+            obj.name.startsWith('prop_'))
         ) {
           // Verify it has not been deleted
           const isDeleted = mutations[`delete:${obj.name}`]

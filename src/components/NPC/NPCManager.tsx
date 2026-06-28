@@ -24,14 +24,17 @@ function SingleNPC({ npc }: { npc: NPCState }) {
   const model = useFBX(NPC_MODEL_URL)
   const groupRef = useRef<Group>(null)
 
+  const currentAct = useGameStore((state) => state.currentAct)
   const isFrozen = useGameStore((state) => state.worldMutations[`freeze:${npc.id}`])
   const isDeleted = useGameStore((state) => state.worldMutations[`delete:${npc.id}`])
   const isGravity = useGameStore((state) => state.worldMutations[`gravity:${npc.id}`])
+  const isConsoleOpen = useGameStore((state) => state.isConsoleOpen)
 
   // Scratch vectors — allocated once
   const targetPos = useRef(new Vector3(npc.targetX, 0, npc.targetZ))
   const currentPos = useRef(new Vector3(...npc.position))
   const dir = useRef(new Vector3())
+  const glitchTimer = useRef(0)
 
   // Clone the model once
   const modelClone = useMemo(() => {
@@ -46,6 +49,34 @@ function SingleNPC({ npc }: { npc: NPCState }) {
 
   useFrame((_, delta) => {
     if (isFrozen || isDeleted || isGravity || !groupRef.current) return
+    
+    // Scale delta for bullet time
+    const dt = isConsoleOpen ? delta * 0.05 : delta
+
+    // Act 5: NPCs are deleted from the simulation
+    if (currentAct === 'act5') {
+      groupRef.current.visible = false
+      return
+    }
+
+    // Act 4: Severe glitches (teleporting, disappearing)
+    if (currentAct === 'act4') {
+      if (Math.random() < 0.005) {
+        groupRef.current.visible = !groupRef.current.visible
+      }
+      if (Math.random() < 0.01 && glitchTimer.current <= 0) {
+        currentPos.current.x += (Math.random() - 0.5) * 4
+        currentPos.current.z += (Math.random() - 0.5) * 4
+        glitchTimer.current = 1.0
+      }
+    }
+    
+    // Act 2: Subtle animation skips
+    if (currentAct === 'act2' && Math.random() < 0.02) {
+      return // skip frame update
+    }
+    
+    if (glitchTimer.current > 0) glitchTimer.current -= dt
 
     // Reuse scratch vector instead of allocating
     dir.current.copy(targetPos.current).sub(currentPos.current)
@@ -73,7 +104,7 @@ function SingleNPC({ npc }: { npc: NPCState }) {
       }
     } else {
       dir.current.normalize()
-      currentPos.current.addScaledVector(dir.current, npc.speed * delta)
+      currentPos.current.addScaledVector(dir.current, npc.speed * dt)
 
       // Mutate Three.js objects directly — no React re-render
       groupRef.current.position.set(currentPos.current.x, 0.05, currentPos.current.z)

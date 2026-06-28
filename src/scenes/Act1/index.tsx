@@ -7,12 +7,18 @@ import gsap from 'gsap'
 import CityGrid from './CityGrid'
 import RoadNetwork from './RoadNetwork'
 import CyberpunkDetails from './CyberpunkDetails'
-import Lighting from './Lighting'
+import EnvironmentManager from '../../components/World/EnvironmentManager'
+import MemoryArchive from './MemoryArchive'
+import CommunicationTower from './CommunicationTower'
+import IndustrialZone from './IndustrialZone'
 import Player from '../../components/Player'
 import ThirdPersonCamera from '../../components/Player/ThirdPersonCamera'
 import NPCManager from '../../components/NPC/NPCManager'
+import EnemyManager from '../../components/Enemy/EnemyManager'
+import ArchitectHologram from '../../components/World/ArchitectHologram'
 import Targeter from '../../components/Player/Targeter'
 import { PostProcessingManager } from '../../components/VFX'
+import { useGameStore } from '../../systems/StabilitySystem'
 
 /**
  * 4-second cinematic dolly across the city on load, then it simply rests.
@@ -68,6 +74,10 @@ function EnteringSimulation() {
 export default function Act1Scene() {
   // Shared position the player writes and the camera follows.
   const playerPos = useRef(new Vector3(0, 2, 24))
+  const isConsoleOpen = useGameStore((state) => state.isConsoleOpen)
+  
+  // Bullet Time: Slow down physics to 5% speed when the console is open
+  const timeStep = isConsoleOpen ? (1 / 60) * 0.05 : 1 / 60
 
   return (
     <Suspense fallback={<EnteringSimulation />}>
@@ -78,19 +88,17 @@ export default function Act1Scene() {
         gl={{ powerPreference: 'high-performance', antialias: false }}
       >
         <Suspense fallback={null}>
-          <Sky
-            distance={450000}
-            sunPosition={[100, 20, 100]}
-            rayleigh={0.5}
-            turbidity={2}
-          />
-          <fog attach="fog" args={['#c8e0ff', 80, 220]} />
-          <Lighting />
-          <Physics>
+          <EnvironmentManager />
+          <Physics timeStep={timeStep}>
             <CityGrid />
             <RoadNetwork />
             <CyberpunkDetails />
+            <MemoryArchive />
+            <CommunicationTower />
+            <IndustrialZone />
             <NPCManager />
+            <EnemyManager playerPos={playerPos} />
+            <ArchitectHologram />
             <Player targetRef={playerPos} />
             <ThirdPersonCamera targetRef={playerPos} />
           </Physics>

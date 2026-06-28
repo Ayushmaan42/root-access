@@ -3,9 +3,8 @@ import { Environment } from '@react-three/drei'
 import { getLayout, linePos } from './cityConfig'
 
 /**
- * Act 1 lighting: warm sun + cool sky ambient, a few sodium-orange street
- * lights, and a city HDRI for reflections. Tuned for performance — only 4
- * street lights + 2 beacons instead of 17 total.
+ * Act 1 lighting: intense dark night scene. Dim moonlight, dark ambient,
+ * high-intensity sodium streetlights, and a dark 'night' HDRI.
  */
 export default function Lighting() {
   // 4 warm streetlight glows at key intersections (down from 12).
@@ -33,8 +32,8 @@ export default function Lighting() {
   return (
     <>
       <directionalLight
-        color="#fff5e0"
-        intensity={2.5}
+        color="#3b5588"
+        intensity={0.4}
         position={[100, 80, 50]}
         castShadow
         shadow-mapSize={[1024, 1024]}
@@ -47,15 +46,15 @@ export default function Lighting() {
         shadow-camera-top={50}
         shadow-camera-bottom={-50}
       />
-      <ambientLight color="#b0c8ff" intensity={0.6} />
+      <ambientLight color="#050815" intensity={0.2} />
 
       {streetLights.map((p, i) => (
         <pointLight
           key={`street-${i}`}
           position={p}
-          color="#ff9944"
-          intensity={1.5}
-          distance={25}
+          color="#ff7711"
+          intensity={3.5}
+          distance={35}
           decay={2}
         />
       ))}
@@ -64,15 +63,15 @@ export default function Lighting() {
         <pointLight
           key={`beacon-${i}`}
           position={p}
-          color="#4488ff"
-          intensity={2}
-          distance={40}
+          color="#1166ff"
+          intensity={5}
+          distance={50}
           decay={2}
         />
       ))}
 
       <Suspense fallback={null}>
-        <Environment preset="city" />
+        <Environment preset="night" environmentIntensity={0.2} />
       </Suspense>
     </>
   )
