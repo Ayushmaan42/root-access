@@ -4,6 +4,7 @@ import { Vector3 } from 'three'
 import { RigidBody, CapsuleCollider } from '@react-three/rapier'
 import type { RapierRigidBody } from '@react-three/rapier'
 import { useGameStore } from '../../systems/StabilitySystem'
+import { useCutsceneStore } from '../../systems/CutsceneSystem'
 import WorldObject from '../World/WorldObject'
 
 interface HunterProps {
@@ -17,6 +18,7 @@ export default function Hunter({ id, startPosition, playerPos }: HunterProps) {
   const isFrozen = useGameStore((s) => s.worldMutations[`freeze:${id}`])
   const takeDamage = useGameStore((s) => s.takeDamage)
   const isConsoleOpen = useGameStore((s) => s.isConsoleOpen)
+  const hasCutscene = useCutsceneStore((s) => s.activeCutscene !== null)
   
   const body = useRef<RapierRigidBody>(null)
   const attackCooldown = useRef(0)
@@ -26,7 +28,12 @@ export default function Hunter({ id, startPosition, playerPos }: HunterProps) {
   const currentPos = useMemo(() => new Vector3(), [])
 
   useFrame((_, delta) => {
-    if (isDeleted || !body.current) return
+    if (isDeleted || hasCutscene || !body.current) {
+      if (body.current) {
+        body.current.setLinvel({ x: 0, y: 0, z: 0 }, true)
+      }
+      return
+    }
     
     // Stop moving completely if frozen
     if (isFrozen) {

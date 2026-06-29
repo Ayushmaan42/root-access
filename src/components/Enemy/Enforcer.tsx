@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { Vector3 } from 'three'
 import type { Group } from 'three'
 import { useGameStore } from '../../systems/StabilitySystem'
+import { useCutsceneStore } from '../../systems/CutsceneSystem'
 import WorldObject from '../World/WorldObject'
 
 interface EnforcerProps {
@@ -16,6 +17,7 @@ export default function Enforcer({ id, startPosition, playerPos }: EnforcerProps
   const isFrozen = useGameStore((s) => s.worldMutations[`freeze:${id}`])
   const takeDamage = useGameStore((s) => s.takeDamage)
   const isConsoleOpen = useGameStore((s) => s.isConsoleOpen)
+  const hasCutscene = useCutsceneStore((s) => s.activeCutscene !== null)
   
   const groupRef = useRef<Group>(null)
   const currentPos = useRef(new Vector3(...startPosition))
@@ -24,7 +26,7 @@ export default function Enforcer({ id, startPosition, playerPos }: EnforcerProps
   const laserRef = useRef<Group>(null)
 
   useFrame((_, delta) => {
-    if (isDeleted || isFrozen || !groupRef.current) return
+    if (isDeleted || isFrozen || hasCutscene || !groupRef.current) return
     
     // Bullet time
     const dt = isConsoleOpen ? delta * 0.05 : delta

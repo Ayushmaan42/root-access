@@ -73,3 +73,50 @@ export function playGlitchSound() {
     // Ignore audio context errors
   }
 }
+
+let bgOscs: { osc: OscillatorNode; gain: GainNode }[] = []
+
+export function startCinematicMusic(type: 'ambient' | 'tense' | 'climax' | 'ending') {
+  stopCinematicMusic()
+  try {
+    const ctx = getAudioContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') {
+      ctx.resume()
+    }
+    
+    const freqs = 
+      type === 'ambient' ? [110, 165, 220] :
+      type === 'tense' ? [98, 147, 196] :
+      type === 'climax' ? [87, 130, 174] :
+      [130, 196, 260] // ending
+      
+    freqs.forEach((f) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = type === 'climax' ? 'sawtooth' : 'triangle'
+      osc.frequency.setValueAtTime(f, ctx.currentTime)
+      
+      // Pulse gain slightly over time
+      gain.gain.setValueAtTime(0.015, ctx.currentTime)
+      
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      bgOscs.push({ osc, gain })
+    })
+  } catch (e) {
+    // Ignore context errors
+  }
+}
+
+export function stopCinematicMusic() {
+  bgOscs.forEach(({ osc, gain }) => {
+    try {
+      osc.stop()
+      osc.disconnect()
+      gain.disconnect()
+    } catch (e) {}
+  })
+  bgOscs = []
+}

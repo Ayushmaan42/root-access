@@ -34,6 +34,28 @@ export default function DialogueOverlay() {
     const isArchitect = rawLine.includes('[ARCHITECT]')
     playSynthBeep(isArchitect ? 400 : 700, 0.08, isArchitect ? 'sine' : 'triangle')
 
+    // Speech synthesis narration support
+    if (activeCutscene) {
+      try {
+        const spokenText = rawLine.replace(/\[.*?\]:\s*/, '')
+        const utterance = new SpeechSynthesisUtterance(spokenText)
+        if (rawLine.includes('[ARCHITECT]')) {
+          utterance.pitch = 0.5
+          utterance.rate = 0.75
+        } else if (rawLine.includes('[SYSTEM]')) {
+          utterance.pitch = 1.05
+          utterance.rate = 0.95
+        } else {
+          utterance.pitch = 0.85
+          utterance.rate = 0.9
+        }
+        window.speechSynthesis.cancel()
+        window.speechSynthesis.speak(utterance)
+      } catch (e) {
+        // Fallback if SpeechSynthesis is blocked/unsupported
+      }
+    }
+
     typewriterTimer.current = setInterval(() => {
       charIdx++
       setDisplayText(rawLine.substring(0, charIdx))
