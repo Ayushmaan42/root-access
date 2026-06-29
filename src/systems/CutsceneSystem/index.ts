@@ -246,7 +246,7 @@ export const useCutsceneStore = create<CutsceneState>((set, get) => ({
   endCutscene: () => {
     // Clear dialogue overlay
     import('../StabilitySystem').then((module) => {
-      module.useGameStore.getState().showDialogue([]) // clear dialogues
+      module.useGameStore.setState({ currentDialogue: null, dialogueIndex: 0 })
     })
     
     const ended = get().activeCutscene

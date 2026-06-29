@@ -13,7 +13,7 @@ export default function DialogueOverlay() {
   const [isDone, setIsDone] = useState(false)
   const typewriterTimer = useRef<any>(null)
 
-  const rawLine = currentDialogue ? currentDialogue[dialogueIndex] : ''
+  const rawLine = (currentDialogue && currentDialogue[dialogueIndex]) ? currentDialogue[dialogueIndex] : ''
 
   // Run typewriter effect
   useEffect(() => {
