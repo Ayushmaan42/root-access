@@ -39,11 +39,22 @@ I have successfully designed, built, and verified the **AAA Cinematic Storytelli
 
 ---
 
+## 🛠️ Bug Fixes & Improvements
+
+### 1. Dialogue Dismissal & Player Freeze Resolution (`src/systems/CutsceneSystem/index.ts`)
+* **Problem**: When a cutscene finished naturally, `endCutscene()` called `showDialogue([])`, setting the active dialogue array to an empty array instead of `null`. This kept the fullscreen widescreen letterbox elements mounted on the screen, and left the player's movement states frozen permanently.
+* **Fix**: Replaced the empty array declaration with a direct state update to set `currentDialogue: null` and reset the index. This correctly dismisses the widescreen letterboxes and instantly restores full keyboard/mouse control to the player character.
+
+### 2. Subtitle Typewriter Robustness (`src/components/HUD/DialogueOverlay.tsx`)
+* **Improvement**: Guarded `rawLine` selection with an array index boundary safety check `(currentDialogue && currentDialogue[dialogueIndex]) ? ... : ''` to guarantee it never returns `undefined` (which caused React render exceptions).
+
+---
+
 ## 🛠️ Verification & Push Log
 
 ### 1. Build Verification
 * Checked typescript structures and bundling via `npm run build`:
-  * **Status**: **PASS** (Built cleanly in 5.38s).
+  * **Status**: **PASS** (Built cleanly in 5.58s).
 
 ### 2. Fork Synchronization
 * **Push status**: **SUCCESS** (All commits uploaded to your remote fork).
