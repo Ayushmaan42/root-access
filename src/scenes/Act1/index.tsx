@@ -61,14 +61,12 @@ export default function Act1Scene() {
 
   // Trigger Cutscene 1 (The World Appears Normal) on initial mount
   useEffect(() => {
-    if (!playedCutscenes['world_normal']) {
-      // Small delay to ensure canvas and textures are ready
-      const timer = setTimeout(() => {
-        startCutscene('world_normal')
-      }, 500)
-      return () => clearTimeout(timer)
-    }
-  }, [playedCutscenes, startCutscene])
+    // Small delay to ensure canvas and textures are ready
+    const timer = setTimeout(() => {
+      startCutscene('world_normal')
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [startCutscene])
 
   // Bullet Time: Slow down physics to 5% speed when the console is open
   const timeStep = isConsoleOpen ? (1 / 60) * 0.05 : 1 / 60

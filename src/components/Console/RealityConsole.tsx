@@ -127,6 +127,16 @@ export default function RealityConsole() {
       return
     }
 
+    const testCutsceneMatch = commandText.match(/^cutscene\(([a-zA-Z0-9_]+)\)$/i)
+    if (testCutsceneMatch) {
+      const name = testCutsceneMatch[1].toLowerCase() as any
+      import('../../systems/CutsceneSystem').then((module) => {
+        module.useCutsceneStore.getState().startCutscene(name)
+      })
+      setLogs((prev) => [...prev, { text: `[TEST]: TRIGGERING CUTSCENE "${name.toUpperCase()}"`, type: 'success' }])
+      return
+    }
+
     const testTimeMatch = commandText.match(/^time\((\d+(\.\d+)?)\)$/i)
     if (testTimeMatch) {
       const multiplier = parseFloat(testTimeMatch[1])
